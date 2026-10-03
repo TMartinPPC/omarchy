@@ -8,6 +8,7 @@ import qs.Commons
 import "plugins/bar"
 import "services"
 import "services/AuthServiceStore.js" as AuthServiceStore
+import "services/BarEntryServiceBoundary.js" as BarEntryServiceBoundary
 
 ShellRoot {
   id: shell
@@ -387,21 +388,17 @@ ShellRoot {
     return shell.serviceFor(shell.pluginRegistry.resolveEnabledId(requestedId))
   }
 
-  // The service id a bar may be handed, if any. Bars write their own layout
-  // (mutatePluginBarConfig), so "configured as a bar entry" alone cannot be
-  // the boundary: a hostile bar could stage omarchy.idle into its layout and
-  // read a first-party service out through it, and first-party services hold
-  // the host shell itself. What may cross is a third-party plugin that is
-  // installed, enabled, declares the bar-widget kind, and is not an
-  // authentication service — the widget the bar would actually be hosting.
+  // The service id a bar may be handed for one of its hosted entries, if
+  // any. The manifest, authentication, and hosting checks live in
+  // BarEntryServiceBoundary.js, so the plugin authentication boundary test
+  // exercises the real boundary logic rather than the wiring around it.
   function barWidgetEntryServiceId(requestedId) {
-    var id = shell.pluginRegistry.resolveEnabledId(String(requestedId || ""))
-    var manifest = shell.pluginRegistry.installedPlugins[id]
-    if (!manifest) return null
-    if (manifest.__isFirstParty) return null
-    if (!Array.isArray(manifest.kinds) || manifest.kinds.indexOf("bar-widget") === -1) return null
-    if (shell.isAuthenticationService(manifest, id)) return null
-    return id
+    return BarEntryServiceBoundary.hostedWidgetServiceId(
+      requestedId,
+      shell.pluginRegistry,
+      function(manifest, id) { return shell.isAuthenticationService(manifest, id) },
+      function(id) { return shell.barEntryConfigured(id) }
+    )
   }
 
   function barEntryConfigured(pluginId) {
@@ -623,14 +620,14 @@ ShellRoot {
         // a replacement bar hands a widget its own service: the widget asks
         // through the bar-level shell the bar passes down as `bar.shell`,
         // where the trusted bar satisfies the same request through
-        // pluginShellForId() instead. Bars write their own layout, so the
-        // entry check alone cannot be the boundary — barWidgetEntryServiceId
-        // keeps first-party services (which hold the host shell),
-        // service-only plugins, and authentication services out of reach no
-        // matter what the bar stages into its layout.
+        // pluginShellForId() instead. barWidgetEntryServiceId() carries the
+        // whole grant: third-party bar-widget manifests only, authentication
+        // services never, and hosting checked across every name the entry
+        // answers to, so nothing the bar stages into its layout beyond a
+        // hosted widget comes back.
         if (hasCurrentBarCapabilities()) {
           var widgetId = shell.barWidgetEntryServiceId(requestedId)
-          if (widgetId && shell.barEntryConfigured(widgetId))
+          if (widgetId)
             return shell.serviceFor(widgetId)
         }
         return null
@@ -729,10 +726,11 @@ ShellRoot {
       // The widget this facade is handed to may reach its own service, the
       // same capability the trusted bar grants through pluginShellForId().
       // owns() resolves both the built-in name and the enabled clone, and
-      // barWidgetEntryServiceId() holds the grant to the same boundary as the
-      // bar-level lookup — installed, enabled, third-party bar-widget
-      // plugins only — so the bar cannot stage a first-party service or a
-      // service-only plugin into reach by editing its layout.
+      // barWidgetEntryServiceId() carries the whole grant — third-party
+      // bar-widget manifests only, authentication services never, and the
+      // hosting check across every name the entry answers to — so the bar
+      // cannot stage a first-party service or a service-only plugin into
+      // reach by editing its layout.
       _serviceLookup: function(requestedId) {
         if (!owns(requestedId)) return null
         var serviceId = shell.barWidgetEntryServiceId(requestedId)
