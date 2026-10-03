@@ -153,6 +153,19 @@ qml_matches "$shell_qml" 'allowOwnService *&& *shell\.pluginOwnsTarget\( *key, *
   fail "cloned widgets cannot use a source id to reach their own service"
 pass "service facades resolve enabled clones without widening replacement-bar access"
 
+# Bars write their own layout, so a configured entry alone cannot bound the
+# bar-entry service grant: the lookup must demand an installed, enabled,
+# third-party bar-widget manifest, which keeps first-party services (which
+# hold the host shell), service-only plugins, and authentication services out
+# of a replacement bar's reach however its layout is staged.
+qml_matches "$shell_qml" 'function barWidgetEntryServiceId\([^}]*manifest\.__isFirstParty[^}]*indexOf\( *"bar-widget" *\)' ||
+  fail "bar entry service lookups are not scoped to third-party bar-widget manifests"
+qml_matches "$shell_qml" 'barWidgetEntryServiceId\( *requestedId *\)[^}]*shell\.isAuthenticationService\( *manifest, *id *\)' ||
+  fail "bar entry service lookups do not exclude authentication services"
+qml_matches "$shell_qml" 'if *\( *!owns\( *requestedId *\) *\) *return *null[^}]*barWidgetEntryServiceId\( *requestedId *\)' ||
+  fail "per-entry facade service lookups bypass the bar-widget manifest boundary"
+pass "bar entry service reach is scoped to hosted third-party bar widgets"
+
 require_compositor "plugin authentication boundary runtime test"
 
 if ! command -v quickshell >/dev/null 2>&1; then
