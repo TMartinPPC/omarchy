@@ -16,11 +16,14 @@
 // absence.
 //
 // A clone of a first-party plugin has a third-party manifest, but the
-// service behind it stays first-party property. First-party services are
-// reachable only through the narrow firstPartyServiceFor() proxies, and a
-// replacement bar holding a raw instance of one — even through a clone —
-// would step around that narrowing. The proxy is the channel; the grant
-// stops short of it.
+// service behind the built-in name stays first-party property. First-party
+// services are reachable only through the narrow firstPartyServiceFor()
+// proxies, and a replacement bar holding a raw instance of one would step
+// around that narrowing — so the built-in name stays denied and the proxy
+// remains the channel for it. The clone's own instance is different: it
+// holds a scoped shell, not the host's, and the widget that is the clone may
+// reach its own service by naming itself, the way pluginOwnsTarget() grants
+// it under the trusted bar.
 //
 // The bar must actually host the widget. An entry can be named by any of the
 // three ids the same hosted widget answers to: the id the caller used, the
@@ -44,7 +47,13 @@ function hostedWidgetServiceId(requestedId, registry, isAuthenticationService, e
   var clonedFrom = metadata ? String(metadata.clonedFrom || "") : ""
   if (clonedFrom) {
     var source = registry.installedPlugins[clonedFrom]
-    if (source && source.__isFirstParty) return null
+    // A clone of a first-party widget may reach its own service by naming
+    // itself — the same grant pluginOwnsTarget() gives it under the trusted
+    // bar, and its instance holds a scoped shell, not the host's. The
+    // built-in name is the first-party service asking to be let out past the
+    // narrow proxy, so that name stays denied; the proxy is the channel for
+    // it.
+    if (source && source.__isFirstParty && requested !== id) return null
   }
   if (entryConfigured(requested) || entryConfigured(id)
       || (!!clonedFrom && entryConfigured(clonedFrom)))

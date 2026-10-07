@@ -239,11 +239,19 @@ assert(
 )
 assert(
   mod.hostedWidgetServiceId('omarchy.media', registry({ 'omarchy.media': mediaSource, 'local.media': mediaClone }, 'local.media'), authNo, entries(['omarchy.media'])) === null,
-  'a clone of a first-party widget stays behind the narrow first-party proxy'
+  'a first-party service stays behind the narrow proxy when asked by its built-in name, clone or not'
 )
 assert(
   mod.hostedWidgetServiceId('omarchy.media', registry({ 'omarchy.media': mediaSource, 'local.media': mediaClone }, 'local.media'), authNo, entries(['local.media'])) === null,
-  'a first-party clone hosted directly in the layout stays behind the narrow first-party proxy too'
+  'a first-party service hosted directly under its clone id stays behind the narrow proxy when asked by the built-in name'
+)
+assert(
+  mod.hostedWidgetServiceId('local.media', registry({ 'omarchy.media': mediaSource, 'local.media': mediaClone }, 'local.media'), authNo, entries(['omarchy.media'])) === 'local.media',
+  'a first-party clone naming itself reaches its own service, as pluginOwnsTarget grants under the trusted bar'
+)
+assert(
+  mod.hostedWidgetServiceId('local.media', registry({ 'omarchy.media': mediaSource, 'local.media': mediaClone }, 'local.media'), authNo, entries(['local.media'])) === 'local.media',
+  'a first-party clone naming itself reaches its own service when the layout hosts the clone entry directly'
 )
 JS
 
