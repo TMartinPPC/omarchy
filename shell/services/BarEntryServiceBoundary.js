@@ -15,6 +15,13 @@
 // It must not be an authentication service, alongside the service-map
 // absence.
 //
+// A clone of a first-party plugin has a third-party manifest, but the
+// service behind it stays first-party property. First-party services are
+// reachable only through the narrow firstPartyServiceFor() proxies, and a
+// replacement bar holding a raw instance of one — even through a clone —
+// would step around that narrowing. The proxy is the channel; the grant
+// stops short of it.
+//
 // The bar must actually host the widget. An entry can be named by any of the
 // three ids the same hosted widget answers to: the id the caller used, the
 // enabled clone that took its place, or the built-in the clone was made
@@ -35,6 +42,10 @@ function hostedWidgetServiceId(requestedId, registry, isAuthenticationService, e
 
   var metadata = manifest.omarchy
   var clonedFrom = metadata ? String(metadata.clonedFrom || "") : ""
+  if (clonedFrom) {
+    var source = registry.installedPlugins[clonedFrom]
+    if (source && source.__isFirstParty) return null
+  }
   if (entryConfigured(requested) || entryConfigured(id)
       || (!!clonedFrom && entryConfigured(clonedFrom)))
     return id

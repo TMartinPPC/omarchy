@@ -198,6 +198,8 @@ const widgetClone = { kinds: ['service', 'bar-widget'], omarchy: { clonedFrom: '
 const serviceOnly = { kinds: ['service'] }
 const firstParty = { kinds: ['service'], __isFirstParty: true }
 const authWidget = { kinds: ['bar-widget'] }
+const mediaSource = { kinds: ['service', 'bar-widget'], __isFirstParty: true }
+const mediaClone = { kinds: ['service', 'bar-widget'], omarchy: { clonedFrom: 'omarchy.media' } }
 
 assert(
   mod.hostedWidgetServiceId('acme.thing', registry({ 'acme.thing': widget }), authNo, entries(['acme.thing'])) === 'acme.thing',
@@ -234,6 +236,14 @@ assert(
 assert(
   mod.hostedWidgetServiceId('local.thing', registry({ 'local.thing': widgetClone }, 'local.thing'), authNo, entries([])) === null,
   'an enabled clone with no hosted entry under any of its names resolves to nothing'
+)
+assert(
+  mod.hostedWidgetServiceId('omarchy.media', registry({ 'omarchy.media': mediaSource, 'local.media': mediaClone }, 'local.media'), authNo, entries(['omarchy.media'])) === null,
+  'a clone of a first-party widget stays behind the narrow first-party proxy'
+)
+assert(
+  mod.hostedWidgetServiceId('omarchy.media', registry({ 'omarchy.media': mediaSource, 'local.media': mediaClone }, 'local.media'), authNo, entries(['local.media'])) === null,
+  'a first-party clone hosted directly in the layout stays behind the narrow first-party proxy too'
 )
 JS
 
